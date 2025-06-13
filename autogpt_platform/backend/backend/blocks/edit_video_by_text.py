@@ -75,6 +75,9 @@ class EditVideoByTextBlock(Block):
         output_path = self.edit_video(
             abs_path, input_data.transcription, input_data.split_at
         )
-        rel_output = os.path.relpath(output_path, get_exec_file_path(graph_exec_id, ""))
-        yield "video", rel_output
+        if os.path.isabs(output_path):
+            output_path = os.path.relpath(
+                output_path, get_exec_file_path(graph_exec_id, "")
+            )
+        yield "video", output_path
         yield "transcription", input_data.transcription
