@@ -44,7 +44,7 @@ class EditVideoByTextBlock(Block):
             input_schema=EditVideoByTextBlock.Input,
             output_schema=EditVideoByTextBlock.Output,
             test_input={
-                "video_in": "sample_video.mp4",
+                "video_in": "data:video/mp4;base64,AAAA",
                 "transcription": "edited transcript",
             },
             test_output=[

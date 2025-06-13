@@ -28,7 +28,7 @@ class TranscribeVideoBlock(Block):
             categories={BlockCategory.MULTIMEDIA},
             input_schema=TranscribeVideoBlock.Input,
             output_schema=TranscribeVideoBlock.Output,
-            test_input={"video_in": "sample_video.mp4"},
+            test_input={"video_in": "data:video/mp4;base64,AAAA"},
             test_output=("transcription", "example transcript"),
             test_mock={"transcribe": lambda path: "example transcript"},
         )
