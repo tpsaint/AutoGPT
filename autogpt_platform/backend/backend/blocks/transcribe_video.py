@@ -48,5 +48,8 @@ class TranscribeVideoBlock(Block):
             graph_exec_id=graph_exec_id, file=input_data.video_in, return_content=False
         )
         abs_path = get_exec_file_path(graph_exec_id, local_path)
-        transcript = self.transcribe(abs_path)
-        yield "transcription", transcript
+        try:
+            transcript = self.transcribe(abs_path)
+            yield "transcription", transcript
+        except Exception as e:
+            yield "error", str(e)
