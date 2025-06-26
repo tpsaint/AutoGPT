@@ -66,7 +66,7 @@ class TranscribeVideoBlock(Block):
                 "video_in": "data:video/mp4;base64,AAAA",
             },
             test_output=("transcription", "example transcript"),
-            test_mock={"transcribe": lambda path: "example transcript"},
+            test_mock={"transcribe": lambda file_path, api_key: "example transcript"},
             test_credentials=TEST_CREDENTIALS,
         )
 

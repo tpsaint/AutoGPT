@@ -81,7 +81,7 @@ class EditVideoByTextBlock(Block):
                 ("transcription", "edited transcript"),
             ],
             test_mock={
-                "edit_video": lambda path, t, s: "https://replicate.com/output/video.mp4"
+                "edit_video": lambda file_path, transcription, split_at, api_key: "https://replicate.com/output/video.mp4"
             },
             test_credentials=TEST_CREDENTIALS,
         )
