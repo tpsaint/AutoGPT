@@ -32,6 +32,7 @@ TEST_CREDENTIALS_INPUT = {
     "title": TEST_CREDENTIALS.title,
 }
 
+
 class EditVideoByTextBlock(Block):
     class Input(BlockSchema):
         credentials: CredentialsMetaInput[
@@ -79,7 +80,9 @@ class EditVideoByTextBlock(Block):
                 ("video_url", "https://replicate.com/output/video.mp4"),
                 ("transcription", "edited transcript"),
             ],
-            test_mock={"edit_video": lambda path, t, s: "https://replicate.com/output/video.mp4"},
+            test_mock={
+                "edit_video": lambda path, t, s: "https://replicate.com/output/video.mp4"
+            },
             test_credentials=TEST_CREDENTIALS,
         )
 
@@ -89,13 +92,13 @@ class EditVideoByTextBlock(Block):
         """Use Replicate's API to edit the video."""
         try:
             client = ReplicateClient(api_token=api_key.get_secret_value())
-            
+
             # Convert file path to file URL
             with open(file_path, "rb") as f:
                 file_data = f.read()
                 file_b64 = base64.b64encode(file_data).decode()
                 file_url = f"data:video/mp4;base64,{file_b64}"
-            
+
             output = await client.async_run(
                 "jd7h/edit-video-by-editing-text:e010b880347314d07e3ce3b21cbd4c57add51fea3474677a6cb1316751c4cb90",
                 input={
@@ -108,8 +111,8 @@ class EditVideoByTextBlock(Block):
             )
 
             # Get video URL from output
-            if isinstance(output, dict) and 'video' in output:
-                video_output = output['video']
+            if isinstance(output, dict) and "video" in output:
+                video_output = output["video"]
                 if isinstance(video_output, FileOutput):
                     return video_output.url
                 return str(video_output)
@@ -122,9 +125,9 @@ class EditVideoByTextBlock(Block):
                 return output.url
             elif isinstance(output, str):
                 return output
-            
+
             raise ValueError(f"Unexpected output format from Replicate API: {output}")
-        except Exception as e:
+        except Exception:
             raise
 
     async def run(
@@ -137,14 +140,19 @@ class EditVideoByTextBlock(Block):
     ) -> BlockOutput:
         try:
             local_path = await store_media_file(
-                graph_exec_id=graph_exec_id, file=input_data.video_in, return_content=False
+                graph_exec_id=graph_exec_id,
+                file=input_data.video_in,
+                return_content=False,
             )
             abs_path = get_exec_file_path(graph_exec_id, local_path)
-            
+
             video_url = await self.edit_video(
-                abs_path, input_data.transcription, input_data.split_at, credentials.api_key
+                abs_path,
+                input_data.transcription,
+                input_data.split_at,
+                credentials.api_key,
             )
-            
+
             yield "video_url", video_url
             yield "transcription", input_data.transcription
         except Exception as e:

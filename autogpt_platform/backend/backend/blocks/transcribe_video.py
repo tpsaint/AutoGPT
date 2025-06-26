@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from typing import Literal
 import base64
-from replicate.helpers import FileOutput
+from typing import Literal
 
 from pydantic import SecretStr
 from replicate.client import Client as ReplicateClient
+from replicate.helpers import FileOutput
 
 from backend.data.block import Block, BlockCategory, BlockOutput, BlockSchema
 from backend.data.model import (
@@ -31,6 +31,7 @@ TEST_CREDENTIALS_INPUT = {
     "type": TEST_CREDENTIALS.type,
     "title": TEST_CREDENTIALS.title,
 }
+
 
 class TranscribeVideoBlock(Block):
     class Input(BlockSchema):
@@ -62,7 +63,7 @@ class TranscribeVideoBlock(Block):
             output_schema=TranscribeVideoBlock.Output,
             test_input={
                 "credentials": TEST_CREDENTIALS_INPUT,
-                "video_in": "data:video/mp4;base64,AAAA"
+                "video_in": "data:video/mp4;base64,AAAA",
             },
             test_output=("transcription", "example transcript"),
             test_mock={"transcribe": lambda path: "example transcript"},
@@ -73,13 +74,13 @@ class TranscribeVideoBlock(Block):
         """Use Replicate's API to transcribe the video."""
         try:
             client = ReplicateClient(api_token=api_key.get_secret_value())
-            
+
             # Convert file path to file URL
             with open(file_path, "rb") as f:
                 file_data = f.read()
                 file_b64 = base64.b64encode(file_data).decode()
                 file_url = f"data:video/mp4;base64,{file_b64}"
-            
+
             output = await client.async_run(
                 "jd7h/edit-video-by-editing-text:e010b880347314d07e3ce3b21cbd4c57add51fea3474677a6cb1316751c4cb90",
                 input={
@@ -91,9 +92,9 @@ class TranscribeVideoBlock(Block):
 
             # Handle dictionary response format
             if isinstance(output, dict):
-                if 'transcription' in output:
-                    return output['transcription']
-                elif 'error' in output:
+                if "transcription" in output:
+                    return output["transcription"]
+                elif "error" in output:
                     raise ValueError(f"API returned error: {output['error']}")
             # Handle list/string formats as before
             elif isinstance(output, list) and len(output) > 0:
@@ -104,9 +105,9 @@ class TranscribeVideoBlock(Block):
                 return output.url
             elif isinstance(output, str):
                 return output
-            
+
             raise ValueError(f"Unexpected output format from Replicate API: {output}")
-        except Exception as e:
+        except Exception:
             raise
 
     async def run(
@@ -119,10 +120,12 @@ class TranscribeVideoBlock(Block):
     ) -> BlockOutput:
         try:
             local_path = await store_media_file(
-                graph_exec_id=graph_exec_id, file=input_data.video_in, return_content=False
+                graph_exec_id=graph_exec_id,
+                file=input_data.video_in,
+                return_content=False,
             )
             abs_path = get_exec_file_path(graph_exec_id, local_path)
-            
+
             transcript = await self.transcribe(abs_path, credentials.api_key)
             yield "transcription", transcript
         except Exception as e:
