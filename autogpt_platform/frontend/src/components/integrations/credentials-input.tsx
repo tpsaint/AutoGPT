@@ -64,6 +64,7 @@ export const providerIcons: Partial<
   open_router: fallbackIcon,
   llama_api: fallbackIcon,
   pinecone: fallbackIcon,
+  enrichlayer: fallbackIcon,
   slant3d: fallbackIcon,
   screenshotone: fallbackIcon,
   smtp: fallbackIcon,
@@ -411,7 +412,9 @@ export const CredentialsInput: FC<{
             .map((credentials, index) => (
               <SelectItem key={index} value={credentials.id}>
                 <ProviderIcon className="mr-2 inline h-4 w-4" />
-                {credentials.username}
+                {credentials.title ||
+                  credentials.username ||
+                  `Your ${providerName} account`}
               </SelectItem>
             ))}
           {savedCredentials
