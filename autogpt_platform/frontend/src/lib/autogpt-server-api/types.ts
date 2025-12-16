@@ -250,7 +250,7 @@ export type GraphExecutionMeta = {
   user_id: UserID;
   graph_id: GraphID;
   graph_version: number;
-  preset_id?: LibraryAgentPresetID;
+  preset_id: LibraryAgentPresetID | null;
   status:
     | "QUEUED"
     | "RUNNING"
@@ -260,15 +260,17 @@ export type GraphExecutionMeta = {
     | "INCOMPLETE";
   started_at: Date;
   ended_at: Date;
-  stats?: {
-    error?: string;
+  stats: {
+    error: string | null;
     cost: number;
     duration: number;
     duration_cpu_only: number;
     node_exec_time: number;
     node_exec_time_cpu_only: number;
     node_exec_count: number;
-  };
+    activity_status: string | null;
+    [key: string]: any;
+  } | null;
 };
 
 export type GraphExecutionID = Brand<string, "GraphExecutionID">;
@@ -278,6 +280,11 @@ export type GraphExecution = GraphExecutionMeta & {
   inputs: Record<string, any>;
   outputs: Record<string, Array<any>>;
   node_executions?: NodeExecutionResult[];
+};
+
+export type GraphExecutionsResponse = {
+  executions: GraphExecutionMeta[];
+  pagination: Pagination;
 };
 
 /* Mirror of backend/data/graph.py:GraphMeta */
@@ -322,8 +329,9 @@ export type CredentialsInputSchema = {
 
 /* Mirror of backend/data/graph.py:Graph */
 export type Graph = GraphMeta & {
-  nodes: Array<Node>;
-  links: Array<Link>;
+  nodes: Node[];
+  links: Link[];
+  sub_graphs: Omit<Graph, "sub_graphs">[]; // Flattened sub-graphs
 };
 
 export type GraphUpdateable = Omit<
@@ -333,6 +341,7 @@ export type GraphUpdateable = Omit<
   | "is_active"
   | "nodes"
   | "links"
+  | "sub_graphs"
   | "input_schema"
   | "output_schema"
   | "credentials_input_schema"
@@ -340,13 +349,16 @@ export type GraphUpdateable = Omit<
 > & {
   version?: number;
   is_active?: boolean;
-  nodes: Array<NodeCreatable>;
-  links: Array<LinkCreatable>;
+  nodes: NodeCreatable[];
+  links: LinkCreatable[];
   input_schema?: GraphIOSchema;
   output_schema?: GraphIOSchema;
 };
 
-export type GraphCreatable = Omit<GraphUpdateable, "id"> & { id?: string };
+export type GraphCreatable = _GraphCreatableInner & {
+  sub_graphs?: _GraphCreatableInner[]; // Flattened sub-graphs
+};
+type _GraphCreatableInner = Omit<GraphUpdateable, "id"> & { id?: string };
 
 /* Mirror of backend/data/execution.py:NodeExecutionResult */
 export type NodeExecutionResult = {
@@ -371,6 +383,15 @@ export type NodeExecutionResult = {
   end_time?: Date;
 };
 
+/* Structured validation error types for graph execution */
+export type GraphValidationErrorResponse = {
+  detail: {
+    type: "validation_error";
+    message: string;
+    node_errors: Record<string, Record<string, string>>;
+  };
+};
+
 /* *** LIBRARY *** */
 
 /* Mirror of backend/server/v2/library/model.py:LibraryAgent */
@@ -386,6 +407,7 @@ export type LibraryAgent = {
   name: string;
   description: string;
   input_schema: GraphIOSchema;
+  output_schema: GraphIOSchema;
   credentials_input_schema: CredentialsInputSchema;
   new_output: boolean;
   can_access_graph: boolean;
@@ -418,12 +440,7 @@ export enum AgentStatus {
 
 export type LibraryAgentResponse = {
   agents: LibraryAgent[];
-  pagination: {
-    current_page: number;
-    page_size: number;
-    total_items: number;
-    total_pages: number;
-  };
+  pagination: Pagination;
 };
 
 export type LibraryAgentPreset = {
@@ -443,11 +460,7 @@ export type LibraryAgentPresetID = Brand<string, "LibraryAgentPresetID">;
 
 export type LibraryAgentPresetResponse = {
   presets: LibraryAgentPreset[];
-  pagination: {
-    total: number;
-    page: number;
-    size: number;
-  };
+  pagination: Pagination;
 };
 
 export type LibraryAgentPresetCreatable = Omit<
@@ -559,7 +572,9 @@ export type NotificationType =
   | "CONTINUOUS_AGENT_ERROR"
   | "DAILY_SUMMARY"
   | "WEEKLY_SUMMARY"
-  | "MONTHLY_SUMMARY";
+  | "MONTHLY_SUMMARY"
+  | "AGENT_APPROVED"
+  | "AGENT_REJECTED";
 
 // Mirror of backend/backend/data/notifications.py:NotificationPreference
 export type NotificationPreferenceDTO = {
@@ -604,6 +619,7 @@ export enum BlockUIType {
   WEBHOOK_MANUAL = "Webhook (manual)",
   AGENT = "Agent",
   AI = "AI",
+  AYRSHARE = "Ayrshare",
 }
 
 export enum SpecialBlockID {
