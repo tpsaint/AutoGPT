@@ -36,6 +36,7 @@ import {
   LibraryAgent,
 } from "@/lib/autogpt-server-api";
 import { useBackendAPI } from "@/lib/autogpt-server-api/context";
+import { Key, storage } from "@/services/storage/local-storage";
 import { getTypeColor, findNewlyAddedBlockCoordinates } from "@/lib/utils";
 import { history } from "./history";
 import { CustomEdge } from "./CustomEdge";
@@ -56,6 +57,8 @@ import PrimaryActionBar from "@/components/PrimaryActionButton";
 import OttoChatWidget from "@/components/OttoChatWidget";
 import { useToast } from "@/components/molecules/Toast/use-toast";
 import { useCopyPaste } from "../hooks/useCopyPaste";
+import NewControlPanel from "@/app/(platform)/build/components/NewBlockMenu/NewControlPanel/NewControlPanel";
+import { Flag, useGetFlag } from "@/services/feature-flags/use-get-flag";
 
 // This is for the history, this is the minimum distance a block must move before it is logged
 // It helps to prevent spamming the history with small movements especially when pressing on a input in a block
@@ -98,6 +101,11 @@ const FlowEditor: React.FC<{
   const [flowExecutionID, setFlowExecutionID] = useState<
     GraphExecutionID | undefined
   >();
+  // State to control if blocks menu should be pinned open
+  const [pinBlocksPopover, setPinBlocksPopover] = useState(false);
+  // State to control if save popover should be pinned open
+  const [pinSavePopover, setPinSavePopover] = useState(false);
+
   const {
     agentName,
     setAgentName,
@@ -115,6 +123,7 @@ const FlowEditor: React.FC<{
     isRunning,
     isStopping,
     isScheduling,
+    graphExecutionError,
     nodes,
     setNodes,
     edges,
@@ -148,16 +157,9 @@ const FlowEditor: React.FC<{
   }>({});
   const isDragging = useRef(false);
 
-  // State to control if blocks menu should be pinned open
-  const [pinBlocksPopover, setPinBlocksPopover] = useState(false);
-  // State to control if save popover should be pinned open
-  const [pinSavePopover, setPinSavePopover] = useState(false);
-
   const runnerUIRef = useRef<RunnerUIWrapperRef>(null);
 
   const { toast } = useToast();
-
-  const TUTORIAL_STORAGE_KEY = "shepherd-tour";
 
   // It stores the dimension of all nodes with position as well
   const [nodeDimensions, setNodeDimensions] = useState<NodeDimension>({});
@@ -181,13 +183,13 @@ const FlowEditor: React.FC<{
 
   useEffect(() => {
     if (params.get("resetTutorial") === "true") {
-      localStorage.removeItem(TUTORIAL_STORAGE_KEY);
+      storage.clean(Key.SHEPHERD_TOUR);
       router.push(pathname);
-    } else if (!localStorage.getItem(TUTORIAL_STORAGE_KEY)) {
+    } else if (!storage.get(Key.SHEPHERD_TOUR)) {
       const emptyNodes = (forceRemove: boolean = false) =>
         forceRemove ? (setNodes([]), setEdges([]), true) : nodes.length === 0;
       startTutorial(emptyNodes, setPinBlocksPopover, setPinSavePopover);
-      localStorage.setItem(TUTORIAL_STORAGE_KEY, "yes");
+      storage.set(Key.SHEPHERD_TOUR, "yes");
     }
   }, [router, pathname, params, setEdges, setNodes, nodes.length]);
 
@@ -674,6 +676,8 @@ const FlowEditor: React.FC<{
     runnerUIRef.current?.openRunInputDialog();
   }, [isScheduling, savedAgent, toast, saveAgent]);
 
+  const isNewBlockEnabled = useGetFlag(Flag.NEW_BLOCK_MENU);
+
   return (
     <FlowContext.Provider
       value={{ visualizeBeads, setIsAnyModalOpen, getNextNodeId }}
@@ -698,31 +702,41 @@ const FlowEditor: React.FC<{
         >
           <Controls />
           <Background className="dark:bg-slate-800" />
-          <ControlPanel
-            className="absolute z-20"
-            controls={editorControls}
-            topChildren={
-              <BlocksControl
-                pinBlocksPopover={pinBlocksPopover} // Pass the state to BlocksControl
-                blocks={availableBlocks}
-                addBlock={addNode}
-                flows={availableFlows}
-                nodes={nodes}
-              />
-            }
-            botChildren={
-              <SaveControl
-                agentMeta={savedAgent}
-                canSave={!isSaving && !isRunning && !isStopping}
-                onSave={saveAgent}
-                agentDescription={agentDescription}
-                onDescriptionChange={setAgentDescription}
-                agentName={agentName}
-                onNameChange={setAgentName}
-                pinSavePopover={pinSavePopover}
-              />
-            }
-          />
+          {isNewBlockEnabled ? (
+            <NewControlPanel
+              flowExecutionID={flowExecutionID}
+              visualizeBeads={visualizeBeads}
+              pinSavePopover={pinSavePopover}
+              pinBlocksPopover={pinBlocksPopover}
+            />
+          ) : (
+            <ControlPanel
+              className="absolute z-20"
+              controls={editorControls}
+              topChildren={
+                <BlocksControl
+                  pinBlocksPopover={pinBlocksPopover} // Pass the state to BlocksControl
+                  blocks={availableBlocks}
+                  addBlock={addNode}
+                  flows={availableFlows}
+                  nodes={nodes}
+                />
+              }
+              botChildren={
+                <SaveControl
+                  agentMeta={savedAgent}
+                  canSave={!isSaving && !isRunning && !isStopping}
+                  onSave={saveAgent}
+                  agentDescription={agentDescription}
+                  onDescriptionChange={setAgentDescription}
+                  agentName={agentName}
+                  onNameChange={setAgentName}
+                  pinSavePopover={pinSavePopover}
+                />
+              }
+            />
+          )}
+
           {!graphHasWebhookNodes ? (
             <PrimaryActionBar
               className="absolute bottom-0 left-1/2 z-20 -translate-x-1/2"
@@ -765,6 +779,7 @@ const FlowEditor: React.FC<{
           ref={runnerUIRef}
           graph={savedAgent}
           nodes={nodes}
+          graphExecutionError={graphExecutionError}
           createRunSchedule={createRunSchedule}
           saveAndRun={saveAndRun}
         />
